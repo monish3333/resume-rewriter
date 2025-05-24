@@ -18,6 +18,12 @@ if 'last_upload' not in st.session_state:
 if 'last_response' not in st.session_state:
     st.session_state.last_response = None
 
+# ===== ADDED: Key Verification Block =====
+# Key Verification Block
+st.write("🔑 Key being used:", st.secrets.get('OPENROUTER_KEY', 'NOT FOUND')[:4] + "...")
+st.write("🌐 Referer URL:", st.secrets.get('APP_URL', 'Not set'))
+# ===== END OF ADDED BLOCK =====
+
 # Title and description
 st.title("📄 AI Resume Rewriter Pro")
 st.markdown("""
@@ -87,11 +93,12 @@ if uploaded_file:
             with st.spinner("🔍 AI is analyzing your resume..."):
                 start_time = time.time()
                 
-                # Prepare the API request
+                # ===== UPDATED HEADERS FORMAT =====
                 headers = {
-                    "Authorization": f"Bearer {st.secrets['OPENROUTER_KEY']}",
-                    "HTTP-Referer": st.secrets.get("APP_URL", "https://resume-rewriter.streamlit.app"),
-                    "X-Title": "Resume Rewriter Pro"
+                    "Authorization": f"Bearer {st.secrets['OPENROUTER_KEY']}",  # No space after "Bearer"
+                    "HTTP-Referer": st.secrets.get("APP_URL", "https://default.streamlit.app"),
+                    "X-Title": "Resume Rewriter (Production)",
+                    "Content-Type": "application/json"
                 }
                 
                 prompt = f"""Improve this resume for a {job_role if job_role else 'general'} position{
@@ -105,6 +112,7 @@ if uploaded_file:
                     Original resume:\n{text}"""
                 
                 try:
+                    # ===== REINFORCED API CALL =====
                     response = requests.post(
                         "https://openrouter.ai/api/v1/chat/completions",
                         headers=headers,
@@ -117,12 +125,20 @@ if uploaded_file:
                             "temperature": 0.3,
                             "max_tokens": 2000
                         },
-                        timeout=45
+                        timeout=45,
+                        verify=True  # Enforce SSL verification
                     )
                     
                     # Store response in session state
                     st.session_state.last_response = response
                     processing_time = time.time() - start_time
+                    
+                    # ===== ADDED DEBUG OUTPUT =====
+                    st.code(f"""
+                    Status: {response.status_code}
+                    Headers Sent: {json.dumps(headers, indent=2)}
+                    Response: {response.text}
+                    """)
                     
                 except requests.exceptions.RequestException as e:
                     st.error(f"🌐 Network error: {str(e)}")
@@ -167,6 +183,6 @@ if uploaded_file:
         st.stop()
 
 # Debug section (comment out in production)
-# if st.session_state.last_response:
-#     with st.expander("Debug Info", expanded=False):
-#         st.json(st.session_state.last_response.json())
+if st.session_state.last_response:
+    with st.expander("Debug Info", expanded=False):
+        st.json(st.session_state.last_response.json())
